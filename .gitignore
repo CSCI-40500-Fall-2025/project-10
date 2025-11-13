@@ -17,3 +17,9 @@ client/.env.local
 *.log
 
 .history/
+
+# Documentation - ignore all .md files except README.md
+*.md
+!README.md
+.context/*.md
+
