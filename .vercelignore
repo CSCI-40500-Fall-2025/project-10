@@ -1,0 +1,11 @@
+node_modules
+.env
+.env.local
+*.log
+.DS_Store
+server/src
+client/src
+*.ts
+!*.d.ts
+tsconfig.json
+

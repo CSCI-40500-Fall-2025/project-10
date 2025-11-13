@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": "client/dist",
+  "builds": [
+    {
+      "src": "server/dist/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/health",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/companies",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/users",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/areas",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/listings",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/signup",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/login",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/protected",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/status",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "server/dist/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "client/dist/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+

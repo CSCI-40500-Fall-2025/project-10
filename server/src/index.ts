@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { z } from 'zod'
-import { pool, query } from './db'
+import { pool, query } from './db.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { fileURLToPath } from 'url'
@@ -204,5 +204,11 @@ app.get('/protected', (req, res) => {
   })
 })
 
-const port = Number(process.env.PORT || 4000)
-app.listen(port, () => console.log(`API listening on http://localhost:${port}`))
+// For Vercel serverless deployment
+export default app
+
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  const port = Number(process.env.PORT || 4000)
+  app.listen(port, () => console.log(`API listening on http://localhost:${port}`))
+}
