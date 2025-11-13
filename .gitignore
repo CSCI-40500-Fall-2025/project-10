@@ -16,7 +16,4 @@ client/.env.local
 .DS_Store
 *.log
 
-# package lock
-*package-lock.json*
-
 .history/

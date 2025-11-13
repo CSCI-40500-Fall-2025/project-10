@@ -1,23 +1,118 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+# This workflow runs tests and triggers Vercel deployment
+# Frontend tests run first, then backend build is verified before deployment
 
-name: Node.js CI
+name: CI and Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-  build:
+  # Step 1: Run client tests
+  client-tests:
+    name: Frontend Tests
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout Rep
-      uses: actions/checkout@v4
-    - name: Use Node.js 22
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-    - run: npm install --prefix client
-    - run: npm run test --prefix client
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Run client tests
+        working-directory: ./client
+        run: npm run test
+
+      - name: Build client (verification)
+        working-directory: ./client
+        run: npm run build
+
+  # Step 2: Verify server builds (runs after client tests pass)
+  server-build:
+    name: Backend Build Verification
+    needs: client-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Build server (TypeScript compilation)
+        working-directory: ./server
+        run: npm run build
+
+      - name: Verify build output exists
+        run: |
+          if [ ! -f "server/dist/index.js" ]; then
+            echo "[ERROR] Server build failed - dist/index.js not found"
+            exit 1
+          fi
+          echo "[SUCCESS] Server build successful"
+
+  # Step 3: Deploy to Vercel (only on push to main, after all tests pass)
+  deploy:
+    name: Deploy to Vercel
+    needs: [client-tests, server-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Vercel deploy hook is configured
+        run: |
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
+            echo "[WARNING] VERCEL_DEPLOY_HOOK_URL secret is not set"
+            echo "Please add it in: Settings -> Secrets -> Actions"
+            exit 1
+          fi
+
+      - name: Trigger Vercel deployment
+        run: |
+          echo "[DEPLOY] Triggering Vercel deployment..."
+          RESPONSE=$(curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" \
+            --write-out "\n%{http_code}" \
+            --silent \
+            --show-error)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "[SUCCESS] Vercel deployment triggered successfully (HTTP $HTTP_CODE)"
+          else
+            echo "[ERROR] Vercel deployment trigger failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [PASS] Frontend tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- [PASS] Backend build verified" >> $GITHUB_STEP_SUMMARY
+          echo "- [PASS] Vercel deployment initiated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check deployment status in [Vercel Dashboard](https://vercel.com/dashboard)" >> $GITHUB_STEP_SUMMARY
